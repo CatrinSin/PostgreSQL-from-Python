@@ -4,9 +4,9 @@ def create_db(cursor):
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS personal_information(
         id SERIAL PRIMARY KEY,
-        first_name VARCHAR(40) NOT NULL,
-        second_name VARCHAR(40) NOT NULL,
-        email VARCHAR(80) UNIQUE NOT NULL      
+        first_name VARCHAR(40),
+        second_name VARCHAR(40),
+        email VARCHAR(80) UNIQUE      
         );
     """)
     cursor.execute("""
@@ -22,12 +22,13 @@ def create_db(cursor):
 def add_client(cursor, first_name, second_name, email, telephon_number=None):
     cursor.execute(""" 
     INSERT INTO personal_information(first_name, second_name, email)
-    VALUES( %s, %s, %s);
+    VALUES( %s, %s, %s) RETURNING id;
     """, (first_name, second_name, email))
+    cur_id = cursor.fetchone()
     cursor.execute(""" 
-    INSERT INTO phone_numbers(telephon_number)
-    VALUES(%s);
-    """, (telephon_number,))
+    INSERT INTO phone_numbers(personal_id, telephon_number)
+    VALUES(%s, %s);
+    """, (cur_id, telephon_number))
 
 
 # 3. Функция, позволяющая добавить телефон для существующего клиента
@@ -39,12 +40,22 @@ def add_phone_number(cursor, personal_id, telephon_number=None):
 
 # 4. Функция, позволяющая изменить данные о клиенте
 def change_client(cursor, id, first_name=None, second_name=None, email=None, telephon_number=None):
-    cursor.execute(""" 
-    UPDATE personal_information SET first_name=%s, second_name=%s, email=%s WHERE id=%s;
-    """, (first_name, second_name, email, id))
-    cursor.execute(""" 
-    UPDATE phone_numbers SET telephon_number=%s  WHERE id=%s;
-    """, (telephon_number, id))
+    if first_name != None:
+        cursor.execute(""" 
+        UPDATE personal_information SET first_name=%s WHERE id=%s;
+        """, (first_name,id))
+    if second_name != None:
+        cursor.execute(""" 
+        UPDATE personal_information SET second_name=%s WHERE id=%s;
+        """, (second_name,id))
+    if email != None:
+        cursor.execute(""" 
+        UPDATE personal_information SET email=%s WHERE id=%s;
+        """, (email,id))
+    if telephon_number != None:
+        cursor.execute(""" 
+        UPDATE phone_numbers SET telephon_number=%s  WHERE id=%s;
+        """, (telephon_number, id))
 
 # 5. Функция, позволяющая удалить телефон для существующего клиента
 def del_phone_number(cursor, personal_id, telephon_number):
@@ -79,12 +90,15 @@ with psycopg2.connect(database="homework_2", user="postgres", password="Catrin.S
         DROP TABLE personal_information;
         """)
 
+
         create_db(cur)
         add_client(cur, 'Лев', 'Толстой', 'lev.tolstoy@yandex.ru', '9123456789')
         add_client(cur, 'Стивен', 'Кинг', 'stiv.king@gmail.com', '9164958231')
         add_client(cur, 'Анна', 'Гранде', 'grand.ann@gmail.com', '9562495785')
         add_phone_number(cur, 1, '98563562451')
+        add_phone_number(cur, 1, '98556164441')
         change_client(cur, 1, 'Иван', 'Бунин', 'bunin.iv@ya.ru', '9563214568')
+        change_client(cur, 1, first_name='Валентин')
         del_phone_number(cur, 1, '9563214568')
         del_client(cur, 1)
         print(find_client(cur, first_name='Анна'))
